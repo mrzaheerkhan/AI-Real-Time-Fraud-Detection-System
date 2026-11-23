@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Real-Time Fraud Detection Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --approve: #10b981;
+      --review: #f59e0b;
+      --block: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px; line-height: 1.5; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.5rem; }
+    .status-pill {
+      padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+      background: #1e293b; border: 1px solid var(--border); color: var(--muted);
+    }
+    .status-pill.online { color: var(--approve); border-color: rgba(16, 185, 129, 0.4); }
+    .status-pill.offline { color: var(--block); border-color: rgba(239, 68, 68, 0.4); }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 16px; color: #e2e8f0; }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+    input, select {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      font-size: 0.95rem;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    button {
+      width: 100%; padding: 11px; border: none; border-radius: 8px;
+      background: var(--primary); color: white; font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; margin-top: 6px; transition: background 0.15s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button.secondary {
+      width: auto; padding: 6px 12px; font-size: 0.85rem; background: #334155; margin-top: 0;
+    }
+    button.secondary:hover { background: #475569; }
+
+    .result-box {
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      min-height: 240px; text-align: center;
+    }
+    .badge {
+      padding: 8px 20px; border-radius: 999px; font-size: 1.1rem; font-weight: 700;
+      letter-spacing: 0.05em; margin-bottom: 16px;
+    }
+    .badge.APPROVE { background: rgba(16, 185, 129, 0.15); color: var(--approve); border: 1px solid var(--approve); }
+    .badge.REVIEW { background: rgba(245, 158, 11, 0.15); color: var(--review); border: 1px solid var(--review); }
+    .badge.BLOCK { background: rgba(239, 68, 68, 0.15); color: var(--block); border: 1px solid var(--block); }
+
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 8px; }
+    .metric { background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+    .metric span { display: block; font-size: 0.8rem; color: var(--muted); }
+    .metric strong { font-size: 1.2rem; color: var(--text); }
+
+    .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    .pill-sm { padding: 3px 9px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+    .pill-sm.APPROVE { background: rgba(16, 185, 129, 0.15); color: var(--approve); }
+    .pill-sm.REVIEW { background: rgba(245, 158, 11, 0.15); color: var(--review); }
+    .pill-sm.BLOCK { background: rgba(239, 68, 68, 0.15); color: var(--block); }
+    .error-msg { color: var(--block); font-size: 0.85rem; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AI Real-Time Fraud Detection</h1>
+      <div id="apiStatus" class="status-pill">Checking API...</div>
+    </header>
+
+    <div class="grid">
+      <!-- Transaction Input Form -->
+      <div class="card">
+        <h2>Score New Transaction</h2>
+        <form id="txForm">
+          <div class="row">
+            <div class="form-group">
+              <label for="customer_id">Customer ID</label>
+              <input id="customer_id" type="text" value="C1188" required />
+            </div>
+            <div class="form-group">
+              <label for="amount">Amount</label>
+              <input id="amount" type="number" step="0.01" value="320000" required />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="form-group">
+              <label for="transaction_time">Time (HH:MM)</label>
+              <input id="transaction_time" type="text" value="02:15" placeholder="HH:MM" required />
+            </div>
+            <div class="form-group">
+              <label for="device">Device</label>
+              <select id="device">
+                <option value="known">known</option>
+                <option value="new" selected>new</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="location">Location</label>
+            <select id="location">
+              <option value="home">home</option>
+              <option value="unknown" selected>unknown</option>
+            </select>
+          </div>
+
+          <button type="submit">Analyze Transaction</button>
+          <div id="formError" class="error-msg"></div>
+        </form>
+      </div>
+
+      <!-- Latest Decision Output -->
+      <div class="card">
+        <h2>Scoring Result</h2>
+        <div id="resultBox" class="result-box">
+          <p style="color: var(--muted);">Submit a transaction to view the fraud probability and decision.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Transactions Table -->
+    <div class="card">
+      <div class="table-header">
+        <h2>Recent Scored Transactions</h2>
+        <button class="secondary" onclick="loadTransactions()">Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Customer</th>
+            <th>Amount</th>
+            <th>Time</th>
+            <th>Device</th>
+            <th>Location</th>
+            <th>Deviation</th>
+            <th>Fraud Prob.</th>
+            <th>Decision</th>
+          </tr>
+        </thead>
+        <tbody id="txTableBody">
+          <tr><td colspan="9" style="color: var(--muted);">Loading transactions...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    async function checkHealth() {
+      const badge = document.getElementById("apiStatus");
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        if (res.ok && data.model_loaded) {
+          badge.textContent = "API Online • Model Loaded";
+          badge.className = "status-pill online";
+        } else {
+          badge.textContent = "API Online • Model Missing";
+          badge.className = "status-pill offline";
+        }
+      } catch {
+        badge.textContent = "API Offline (Start Uvicorn)";
+        badge.className = "status-pill offline";
+      }
+    }
+
+    function renderResult(data) {
+      const box = document.getElementById("resultBox");
+      const probPct = (Number(data.fraud_probability ?? 0) * 100).toFixed(1);
+      const dev = Number(data.spending_deviation ?? 0).toFixed(2);
+      const decision = data.decision || "REVIEW";
+
+      box.innerHTML = `
+        <div class="badge ${decision}">${decision}</div>
+        <div class="metrics">
+          <div class="metric">
+            <span>Fraud Probability</span>
+            <strong>${probPct}%</strong>
+          </div>
+          <div class="metric">
+            <span>Spending Deviation</span>
+            <strong>${dev}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadTransactions() {
+      const tbody = document.getElementById("txTableBody");
+      try {
+        const res = await fetch(`${API_BASE}/api/transactions?limit=10`);
+        const items = await res.json();
+        const rows = Array.isArray(items) ? items : (items.transactions || []);
+
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="9" style="color: var(--muted);">No transactions recorded yet.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(tx => `
+          <tr>
+            <td>${tx.id ?? "-"}</td>
+            <td>${tx.customer_id}</td>
+            <td>${Number(tx.amount).toLocaleString()}</td>
+            <td>${tx.transaction_time}</td>
+            <td>${tx.device}</td>
+            <td>${tx.location}</td>
+            <td>${Number(tx.spending_deviation ?? 0).toFixed(2)}</td>
+            <td>${(Number(tx.fraud_probability ?? 0) * 100).toFixed(1)}%</td>
+            <td><span class="pill-sm ${tx.decision}">${tx.decision}</span></td>
+          </tr>
+        `).join("");
+      } catch {
+        tbody.innerHTML = `<tr><td colspan="9" style="color: var(--block);">Could not load transactions. Check that Uvicorn and CORS are enabled.</td></tr>`;
+      }
+    }
+
+    document.getElementById("txForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById("formError");
+      errEl.textContent = "";
+
+      const payload = {
+        customer_id: document.getElementById("customer_id").value.trim(),
+        amount: parseFloat(document.getElementById("amount").value),
+        transaction_time: document.getElementById("transaction_time").value.trim(),
+        device: document.getElementById("device").value,
+        location: document.getElementById("location").value,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/transactions/score`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errEl.textContent = data.detail || "Failed to score transaction.";
+          return;
+        }
+        renderResult(data);
+        loadTransactions();
+      } catch {
+        errEl.textContent = "Network error: make sure Uvicorn is running on port 8000 and CORS is enabled.";
+      }
+    });
+
+    checkHealth();
+    loadTransactions();
+  </script>
+</body>
+</html>
